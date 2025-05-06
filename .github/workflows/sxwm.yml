@@ -28,6 +28,7 @@ jobs:
             make \
             libx11-dev \
             libxinerama-dev \
+            libxcursor-dev \
             patch
 
       - name: Check for Makefile and source files
