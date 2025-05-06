@@ -1,0 +1,89 @@
+name: Build sxwm
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout uint23/sxwm repository
+        uses: actions/checkout@v4
+        with:
+          repository: uint23/sxwm
+          ref: main
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc \
+            make \
+            libx11-dev \
+            libxinerama-dev \
+            patch
+
+      - name: Check for Makefile and source files
+        run: |
+          echo "Listing repository contents for debugging:"
+          find . -type f
+          if [ ! -f Makefile ]; then
+            echo "No Makefile found in the repository."
+            exit 1
+          fi
+          if [ ! -f src/sxwm.c ]; then
+            echo "Source file src/sxwm.c not found."
+            exit 1
+          fi
+          if [ ! -f src/config.h ]; then
+            echo "Configuration file src/config.h not found."
+            exit 1
+          fi
+          echo "Makefile, source files, and config.h found"
+
+      - name: Build sxwm
+        run: |
+          make
+          if [ -f sxwm ]; then
+            echo "Binary sxwm found in root"
+          elif [ -f src/sxwm ]; then
+            echo "Binary sxwm found in src/"
+            mv src/sxwm .
+          else
+            echo "Binary sxwm not found"
+            ls -l src/
+            exit 1
+          fi
+
+      - name: Verify binary
+        run: |
+          if [ -f sxwm ]; then
+            echo "Binary sxwm found"
+            file sxwm
+            ldd sxwm || true
+          else
+            echo "Binary sxwm not found"
+            ls -l
+            exit 1
+          fi
+
+      - name: Package binary and source files
+        run: |
+          mkdir -p artifacts
+          cp sxwm artifacts/
+          cp -r src artifacts/
+          tar -czvf artifacts/sxwm-binary.tar.gz -C artifacts sxwm src
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sxwm-binary
+          path: artifacts/sxwm-binary.tar.gz
+          retention-days: 7
